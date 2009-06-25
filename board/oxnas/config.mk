@@ -3,7 +3,6 @@
 #
 
 TEXT_BASE = 0x48d00000
-CROSS_COMPILE = arm-linux-
 
 # Define the master clock frequencies of the NAS chip - allow overriding from make invocation cmd line
 PLL400 ?= 400000000
