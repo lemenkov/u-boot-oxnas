@@ -30,7 +30,8 @@ LOAD_ADDR = 0x40000
 endif
 
 ifeq ($(ARCH),arm)
-LOAD_ADDR = 0xc100000
+#LOAD_ADDR = 0xc100000
+LOAD_ADDR = 0x4C004000
 endif
 
 ifeq ($(ARCH),mips)
@@ -57,6 +58,11 @@ include $(TOPDIR)/config.mk
 
 SREC	= hello_world.srec
 BIN	= hello_world.bin hello_world
+
+ifeq ($(ARCH),arm)
+SREC   += mem_test.srec
+BIN    += mem_test.bin mem_test
+endif
 
 ifeq ($(ARCH),i386)
 SREC   += 82559_eeprom.srec
@@ -115,10 +121,10 @@ $(LIB): .depend $(LIBOBJS)
 	$(LD) -g $(EX_LDFLAGS) -Ttext $(LOAD_ADDR) \
 		-o $@ -e $(<:.o=) $< $(LIB) \
 		-L$(gcclibdir) -lgcc
-%.srec:	%
+%.srec:	%.o
 	$(OBJCOPY) -O srec $< $@ 2>/dev/null
 
-%.bin:	%
+%.bin:	%.o
 	$(OBJCOPY) -O binary $< $@ 2>/dev/null
 
 #########################################################################

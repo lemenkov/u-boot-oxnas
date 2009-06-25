@@ -299,7 +299,7 @@ static __inline__ int abortboot(int bootdelay)
 /****************************************************************************/
 
 void main_loop (void)
-{
+{    
 #ifndef CFG_HUSH_PARSER
 	static char lastcommand[CFG_CBSIZE] = { 0, };
 	int len;
@@ -368,6 +368,101 @@ void main_loop (void)
 #ifdef CONFIG_AUTO_COMPLETE
 	install_auto_complete();
 #endif
+
+
+#if defined(CONFIG_OXNAS) 
+#if defined(CHECK_FOR_UPGRADE_AND_RECOVERY)
+    /* Get the state of the recovery button ---------------------------------*/ 
+    /* Disable primary, secondary and teriary GPIO functions on recovery button lines */
+    writel(readl(RECOVERY_PRISEL_REG) & ~RECOVERY_BUTTON, RECOVERY_PRISEL_REG);
+    writel(readl(RECOVERY_SECSEL_REG) & ~RECOVERY_BUTTON, RECOVERY_SECSEL_REG);
+    writel(readl(RECOVERY_TERSEL_REG) & ~RECOVERY_BUTTON, RECOVERY_TERSEL_REG);
+
+    /* Enable GPIO input on recovery button */
+    writel(RECOVERY_BUTTON, RECOVERY_CLR_OE_REG);
+
+    /* Read the recovery button GPIO */
+    int do_recovery = ~readl(RECOVERY_DATA) & RECOVERY_BUTTON;
+
+    /* read the update status */
+    run_command("ide read 48700000 3f 1", 0);  /* Read the space between U-Boot environment and U-Boot program images */
+    char upgrade_mode = *(volatile char*)0x48700000;
+
+    /* branch off inot recovery or upadate */
+    if (upgrade_mode == '1') {
+        /* Script to select first disk */
+        parse_string_outer("set select0 ide dev 0", FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+
+        /* Script to select second disk */
+        parse_string_outer("set select1 ide dev 1", FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+
+        /* Script for loading 256KB of upgrade rootfs image from hidden sectors */
+        parse_string_outer("set loadf ide read 48700000 1770 200", FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+
+        /* Script for loading 2MB of upgrade kernel image from hidden sectors */
+        parse_string_outer("set loadk ide read 48800000 1970 1000", FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+
+        /* Script for booting Linux kernel image with mkimage-wrapped initrd */
+        parse_string_outer("set boot bootm 48800000 48700000", FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+
+        /* Set Linux bootargs to use rootfs in initial ramdisk */
+        parse_string_outer("set bootargs mem=32M console=ttyS0,115200 root=/dev/ram0 adminmode=update", FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+
+        /* Validate, load and boot the first validate set of initrd and kernel 
+           Theres alot of combos here due to disk/backup/fk arrangments, it'll
+           no doubt work on the first or second one though. */
+        parse_string_outer("run select0 loadf          loadk  boot || "
+                           "run select1 loadf          loadk  boot || "
+                           "run select0 loadf  select1 loadk  boot || "
+                           "run select1 loadf  select0 loadk  boot    ", FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+    } else if (do_recovery) {
+        printf ("\nRecovery mode selected\n");
+
+        char temp_buf[1024];
+        char* cmd_string = strcpy(&temp_buf[0], getenv("bootargs"));
+        cmd_string = strcat(cmd_string, " adminmode=recovery");
+        setenv("bootargs", cmd_string);
+    }
+
+#if PROBE_MEM_SIZE
+	/* Probe for amount of memory fitted */
+	volatile unsigned long * const probe_lower_adr = (volatile unsigned long *)(PHYS_SDRAM_1_PA + (16*1024*1024));
+	volatile unsigned long * const probe_upper_adr = (volatile unsigned long *)(PHYS_SDRAM_1_PA + (48*1024*1024));
+	const unsigned long PROBE_VAL1 = 0x12345678;
+	const unsigned long PROBE_VAL2 = 0xdeadbeef;
+
+	/* Zero both lower and upper probe locations */
+	*probe_lower_adr = 0;
+	*probe_upper_adr = 0;
+
+	/* Write to location in first 32M and verify */
+	*probe_lower_adr = PROBE_VAL1;
+	if (*probe_lower_adr != PROBE_VAL1) {
+		/* Oh dear, don't even appear to have 32M of memory */
+		printf("Failed to detect lower 32M of SDRAM\n");
+	} else {
+		if (*probe_upper_adr == PROBE_VAL1) {
+			/* Upper 32M is aliased from lower 32M, so only have 32M */
+			printf("Upper 32M of SDRAM is alias of lower 32M\n");
+		} else {
+			*probe_upper_adr = PROBE_VAL2;
+			if (*probe_upper_adr == PROBE_VAL2) {
+				/* Have working upper 32M */
+				printf("Have upper 32M of SDRAM\n");
+
+				/* Replace Linux bootargs element describing memory size */
+				char temp_buf[1024];
+				char* cmd_string = strcpy(&temp_buf[0], getenv("bootargs"));
+				char *ptr = strstr(cmd_string, "mem=");
+				strncpy(ptr, "mem=64M", 7);
+				setenv("bootargs", cmd_string);
+			}
+		}
+	}
+#endif // PROBE_MEM_SIZE
+
+#endif //  CHECK_FOR_UPGRADE_AND_RECOVERY
+#endif // CONFIG_OXNAS
 
 #ifdef CONFIG_PREBOOT
 	if ((p = getenv ("preboot")) != NULL) {

@@ -232,9 +232,11 @@ void start_armboot (void)
 		}
 	}
 
+#ifndef CFG_NO_FLASH
 	/* configure available FLASH banks */
 	size = flash_init ();
 	display_flash_config (size);
+#endif // CFG_NO_FLASH
 
 #ifdef CONFIG_VFD
 #	ifndef PAGE_SIZE

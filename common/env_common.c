@@ -42,7 +42,7 @@
 	extern void disable_nvram(void);
 #endif
 
-#undef DEBUG_ENV
+//#undef DEBUG_ENV
 #ifdef DEBUG_ENV
 #define DEBUGF(fmt,args...) printf(fmt ,##args)
 #else

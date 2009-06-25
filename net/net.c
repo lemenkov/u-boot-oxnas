@@ -473,7 +473,6 @@ restart:
 		 */
 		if (timeHandler && ((get_timer(0) - timeStart) > timeDelta)) {
 			thand_f *x;
-
 #if defined(CONFIG_MII) || (CONFIG_COMMANDS & CFG_CMD_MII)
 #if defined(CFG_FAULT_ECHO_LINK_DOWN) && defined(CONFIG_STATUS_LED) && defined(STATUS_LED_RED)
 			/*
@@ -490,7 +489,6 @@ restart:
 			timeHandler = (thand_f *)0;
 			(*x)();
 		}
-
 
 		switch (NetState) {
 
@@ -726,7 +724,13 @@ PingHandler (uchar * pkt, unsigned dest, unsigned src, unsigned len)
 	IPaddr_t tmp;
 	volatile IP_t *ip = (volatile IP_t *)pkt;
 
+#ifdef ET_DEBUG
+		printf("Entered PING handler\n");
+#endif
 	tmp = NetReadIP((void *)&ip->ip_src);
+#ifdef ET_DEBUG
+		printf("PING handler: tmp = 0x%08x, NetPingIP = 0x%08x\n", tmp, NetPingIP);
+#endif
 	if (tmp != NetPingIP)
 		return;
 
@@ -1384,7 +1388,7 @@ NetReceive(volatile uchar * inpkt, int len)
 				 */
 				/* XXX point to ip packet */
 				(*packetHandler)((uchar *)ip, 0, 0, 0);
-				break;
+				return;/**break; BHC Changed to remove second invocation of ping handler below */
 #endif
 			default:
 				return;
@@ -1402,6 +1406,9 @@ NetReceive(volatile uchar * inpkt, int len)
 		/*
 		 *	IP header OK.  Pass the packet to the current handler.
 		 */
+#ifdef ET_DEBUG
+		printf("IP packet OK, passing to handler\n");
+#endif
 		(*packetHandler)((uchar *)ip +IP_HDR_SIZE,
 						ntohs(ip->udp_dst),
 						ntohs(ip->udp_src),
