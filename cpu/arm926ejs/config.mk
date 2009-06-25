@@ -23,4 +23,4 @@
 
 PLATFORM_RELFLAGS += -fno-strict-aliasing  -fno-common -ffixed-r8
 
-PLATFORM_CPPFLAGS += -mapcs-32 -march=armv5te
+PLATFORM_CPPFLAGS += -march=armv5te

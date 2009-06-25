@@ -1499,10 +1499,11 @@ unsigned
 NetCksum(uchar * ptr, int len)
 {
 	ulong	xsum;
+	ushort *s = ptr;
 
 	xsum = 0;
 	while (len-- > 0)
-		xsum += *((ushort *)ptr)++;
+		xsum += *s++;
 	xsum = (xsum & 0xffff) + (xsum >> 16);
 	xsum = (xsum & 0xffff) + (xsum >> 16);
 	return (xsum & 0xffff);
