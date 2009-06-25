@@ -7,6 +7,9 @@ TEXT_BASE = 0x48d00000
 # Define the master clock frequencies of the NAS chip - allow overriding from make invocation cmd line
 PLL400 ?= 400000000
 RPSCLK ?= 25000000
+
+NAS_VERSION ?= 800
+
 SDR ?= 0
 TEST_BRD ?= 0
 MEM_64M ?= 0
