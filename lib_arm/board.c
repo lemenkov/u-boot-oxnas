@@ -358,12 +358,6 @@ void hang (void)
 	for (;;);
 }
 
-void raise (int n)
-{
-	puts ("### ERROR ### Please RESET the board ###\n");
-	for (;;);
-}
-
 #ifdef CONFIG_MODEM_SUPPORT
 /* called from main loop (common/main.c) */
 extern void  dbg(const char *fmt, ...);
