@@ -181,8 +181,8 @@
 
 #define UART_1_BASE (APB_BRIDGE_A_BASE_PA + 0x200000)
 #define UART_2_BASE (APB_BRIDGE_A_BASE_PA + 0x300000)
-#define UART_3_BASE (APB_BRIDGE_A_BASE_PA + 0x900000) 
-#define UART_4_BASE (APB_BRIDGE_A_BASE_PA + 0xA00000) 
+#define UART_3_BASE (APB_BRIDGE_A_BASE_PA + 0x900000)
+#define UART_4_BASE (APB_BRIDGE_A_BASE_PA + 0xA00000)
 
 #define CFG_NS16550          1
 #define CFG_NS16550_SERIAL   1
@@ -239,15 +239,8 @@
  * Booting
  */
 #define CONFIG_BOOTDELAY            2
-#define CONFIG_BOOTARGS             "mem=32M console=ttyS0,115200 root=/dev/md1 netdev=0,0,0x0030e000,0x0001,eth0 elevator=cfq"
-#define CONFIG_BOOTCOMMAND          "run select0 load boot || run select1 load boot"
-#define CONFIG_EXTRA_ENV_SETTINGS \
-    "select0=ide dev 0\0" \
-    "select1=ide dev 1\0" \
-    "load=ide read 0x48500000 12c 1644\0" \
-    "boot=bootm 48500000\0"
-
-//#define CONFIG_SHOW_BOOT_PROGRESS   1
+#define CONFIG_BOOTARGS             "mem=32M console=ttyS0,115200 root=/dev/sda1 netdev=0,0,0x0030e000,0x0001,eth0 elevator=cfq"
+#define CONFIG_BOOTCOMMAND          "ext2load ide 0:1 0x48500000 /uImage ; bootm 0x48500000"
 
 /**
  * Networking
@@ -267,7 +260,7 @@
 
 //#define CFG_FLASH_CFI
 //#define CFG_FLASH_CFI_DRIVER
-                          
+
 #define NUM_FLASH_MAIN_BLOCKS   63          /* For Intel 28F320B3T */
 #define NUM_FLASH_PARAM_BLOCKS  8           /* For Intel 28F320B3T */
 #define FLASH_MAIN_BLOCK_SIZE   (64*1024)   /* For Intel 28F320B3T family */
