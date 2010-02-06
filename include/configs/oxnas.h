@@ -240,7 +240,7 @@
  */
 #define CONFIG_BOOTDELAY            2
 #define CONFIG_BOOTARGS             "mem=32M console=ttyS0,115200 root=/dev/sda1 netdev=0,0,0x0030e000,0x0001,eth0 elevator=cfq"
-#define CONFIG_BOOTCOMMAND          "ext2load ide 0:1 0x48500000 /uImage ; bootm 0x48500000"
+#define CONFIG_BOOTCOMMAND          "ext2load ide 0:1 0x48500000 /boot/uImage ; bootm 0x48500000"
 
 /**
  * Networking
