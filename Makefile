@@ -2096,6 +2096,9 @@ omap730p2_cs3boot_config :	unconfig
 	fi;
 	@$(MKCONFIG) -n $@ -a omap730p2 arm arm926ejs omap730p2 ti omap
 
+oxnas_config:	unconfig
+	@$(MKCONFIG) $(@:_config=) arm arm926ejs oxe800 oxnas oxe
+
 spear300_config \
 spear310_config \
 spear320_config :	unconfig
