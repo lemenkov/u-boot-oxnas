@@ -82,7 +82,12 @@
 /*
  * Device / Head Register Bits
  */
+#ifdef CONFIG_OXNAS
+#define ATA_DEVICE(x) (0)
+#else
 #define ATA_DEVICE(x)	((x & 1)<<4)
+#endif // CONFIG_OXNAS
+
 #define ATA_LBA		0xE0
 
 /*

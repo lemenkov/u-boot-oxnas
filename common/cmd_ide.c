@@ -177,6 +177,13 @@ ulong atapi_read (int device, lbaint_t blknr, ulong blkcnt, void *buffer);
 static void set_pcmcia_timing (int pmode);
 #endif
 
+#ifdef CONFIG_OXNAS
+extern unsigned char oxnas_sata_inb(int dev, int port);
+extern void oxnas_sata_outb(int dev, int port, unsigned char val);
+extern void oxnas_sata_output_data(int dev, ulong *sect_buf, int words);
+extern void oxnas_sata_input_data(int dev, ulong *sect_buf, int words);
+#endif // CONFIG_OXNAS
+
 /* ------------------------------------------------------------------------- */
 
 int do_ide (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
@@ -518,7 +525,11 @@ __ide_outb(int dev, int port, unsigned char val)
 {
 	debug ("ide_outb (dev= %d, port= 0x%x, val= 0x%02x) : @ 0x%08lx\n",
 		dev, port, val, (ATA_CURR_BASE(dev)+CONFIG_SYS_ATA_PORT_ADDR(port)));
+#ifdef CONFIG_OXNAS
+	oxnas_sata_outb(dev, port, val);
+#else
 	outb(val, (ATA_CURR_BASE(dev)+CONFIG_SYS_ATA_PORT_ADDR(port)));
+#endif
 }
 void ide_outb (int dev, int port, unsigned char val)
 		__attribute__((weak, alias("__ide_outb")));
@@ -527,7 +538,11 @@ unsigned char inline
 __ide_inb(int dev, int port)
 {
 	uchar val;
+#ifdef CONFIG_OXNAS
+	val = oxnas_sata_inb(dev, port);
+#else
 	val = inb((ATA_CURR_BASE(dev)+CONFIG_SYS_ATA_PORT_ADDR(port)));
+#endif
 	debug ("ide_inb (dev= %d, port= 0x%x) : @ 0x%08lx -> 0x%02x\n",
 		dev, port, (ATA_CURR_BASE(dev)+CONFIG_SYS_ATA_PORT_ADDR(port)), val);
 	return val;
@@ -544,6 +559,43 @@ __ide_set_piomode(int pio_mode)
 int inline ide_set_piomode(int pio_mode)
 			__attribute__((weak, alias("__ide_set_piomode")));
 #endif
+
+static int ide_probe(int device)
+{
+	int found = 0;
+
+	/* Select device */
+	udelay(100000);         /* 100 ms */
+	ide_outb(device, ATA_DEV_HD, ATA_LBA | ATA_DEVICE(device));
+	udelay(100000);     /* 100 ms */
+
+	unsigned char c;
+	int i = 0;
+	do {
+		udelay(10000);  /* 10 ms */
+
+		c = ide_inb(device, ATA_STATUS);
+		if (++i > (ATA_RESET_TIME * 100)) {
+			printf("ide_probe() timeout\n");
+			ide_led((LED_IDE1 | LED_IDE2), 0);  /* LED's off */
+			return found;
+		}
+		if ((i >= 100) && ((i%100) == 0)) {
+			putc ('.');
+		}
+	} while (c & ATA_STAT_BUSY);
+
+	if (c & (ATA_STAT_BUSY | ATA_STAT_FAULT)) {
+		printf("ide_probe() status = 0x%02X ", c);
+#ifndef CONFIG_ATAPI    /* ATAPI Devices do not set DRDY */
+	} else  if ((c & ATA_STAT_READY) == 0) {
+		printf("ide_probe() status = 0x%02X ", c);
+#endif
+		} else {
+			found = 1;
+		}
+	return found;
+}
 
 void ide_init (void)
 {
@@ -681,6 +733,29 @@ void ide_init (void)
 	}
 
 	putc ('\n');
+
+	printf("Detecting SATA busses:\n");
+	for (bus=0; bus < CONFIG_SYS_IDE_MAXBUS; ++bus) {
+		printf("Bus %d: ", bus);
+
+		/* Try to discover if bus is present by probing first device on bus */
+		int device = bus * (CONFIG_SYS_IDE_MAXDEVICE / CONFIG_SYS_IDE_MAXBUS);
+		ide_bus_ok[bus] = ide_probe(device);
+		if (ide_bus_ok[bus]) {
+			puts("Found first device OK\n");
+		} else {
+			WATCHDOG_RESET();
+
+			/* Try second device on bus */
+			ide_bus_ok[bus] = ide_probe(++device);
+			if (ide_bus_ok[bus]) {
+				puts("Found second device OK\n");
+			} else {
+				puts("No devices found\n");
+			}
+		}
+		WATCHDOG_RESET();
+	}
 
 	ide_led ((LED_IDE1 | LED_IDE2), 0);	/* LED's off	*/
 
@@ -902,7 +977,11 @@ output_data(int dev, ulong *sect_buf, int words)
 static void
 output_data(int dev, ulong *sect_buf, int words)
 {
+#ifdef CONFIG_OXNAS
+	oxnas_sata_output_data(dev, sect_buf, words);
+#else
 	outsw(ATA_CURR_BASE(dev)+ATA_DATA_REG, sect_buf, words<<1);
+#endif
 }
 #endif	/* CONFIG_IDE_SWAP_IO */
 
@@ -960,7 +1039,11 @@ input_data(int dev, ulong *sect_buf, int words)
 static void
 input_data(int dev, ulong *sect_buf, int words)
 {
+#ifdef CONFIG_OXNAS
+	oxnas_sata_input_data(dev, sect_buf, words);
+#else
 	insw(ATA_CURR_BASE(dev)+ATA_DATA_REG, sect_buf, words << 1);
+#endif
 }
 
 #endif	/* CONFIG_IDE_SWAP_IO */
