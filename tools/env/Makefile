@@ -21,6 +21,8 @@
 # MA 02111-1307 USA
 #
 
+CROSS_COMPILE := arm-linux-
+CC := arm-linux-gcc
 SOURCES := crc32.c  fw_env.c  fw_env_main.c
 HEADERS := fw_env.h
 
@@ -30,7 +32,7 @@ fw_printenv:	$(SOURCES) $(HEADERS)
 	$(CROSS_COMPILE)gcc -Wall -DUSE_HOSTCC $(SOURCES) -o fw_printenv
 
 clean:
-	rm -f fw_printenv crc32.c
+	rm -f fw_printenv crc32.c .depend
 
 crc32.c:
 	ln -s ../../lib_generic/crc32.c crc32.c

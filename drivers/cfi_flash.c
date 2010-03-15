@@ -1056,7 +1056,11 @@ static ulong flash_get_size (ulong base, int banknum)
 			}
 			tmp = flash_read_long (info, 0,
 					       FLASH_OFFSET_ERASE_REGIONS +
+#ifdef FORCE_TOP_BOOT_FLASH
+					       (num_erase_regions - 1 - i) * 4);
+#else
 					       i * 4);
+#endif
 			erase_region_size =
 				(tmp & 0xffff) ? ((tmp & 0xffff) * 256) : 128;
 			tmp >>= 16;
@@ -1104,6 +1108,7 @@ static int flash_write_cfiword (flash_info_t * info, ulong dest,
 	cfiptr_t ctladdr;
 	cfiptr_t cptr;
 	int flag;
+	ulong start;
 
 	ctladdr.cp = flash_make_addr (info, 0, 0);
 	cptr.cp = (uchar *) dest;
@@ -1151,6 +1156,15 @@ static int flash_write_cfiword (flash_info_t * info, ulong dest,
 		break;
 	case FLASH_CFI_16BIT:
 		cptr.wp[0] = cword.w;
+		/* Wait for write to complete */
+		start = get_timer (0);
+		while (cptr.wp[0] != cword.w) {
+			if(start % 250 == 1) printf("#");
+			if (get_timer (start) > info->erase_blk_tout * CFG_HZ) {
+				printf ("Flash write timeout!");;
+			}
+		}
+//		printf("\n");
 		break;
 	case FLASH_CFI_32BIT:
 		cptr.lp[0] = cword.l;

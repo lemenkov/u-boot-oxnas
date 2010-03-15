@@ -39,6 +39,9 @@
 #include "../drivers/lan91c96.h"
 #endif
 
+DECLARE_GLOBAL_DATA_PTR
+
+
 #if (CONFIG_COMMANDS & CFG_CMD_NAND)
 void nand_init (void);
 #endif
@@ -106,7 +109,6 @@ void *sbrk (ptrdiff_t increment)
 
 static int init_baudrate (void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 
 	uchar tmp[64];	/* long enough for environment variables */
 	int i = getenv_r ("baudrate", tmp, sizeof (tmp));
@@ -142,15 +144,17 @@ static int display_banner (void)
  */
 static int display_dram_config (void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 	int i;
 
 	puts ("RAM Configuration:\n");
 
 	for(i=0; i<CONFIG_NR_DRAM_BANKS; i++) {
-		printf ("Bank #%d: %08lx ", i, gd->bd->bi_dram[i].start);
+		printf ("\tBank #%d: %08lx ", i, gd->bd->bi_dram[i].start);
 		print_size (gd->bd->bi_dram[i].size, "\n");
 	}
+
+	puts("SRAM Configuration:\n");
+	printf("\t%dKB at 0x%08x\n", gd->bd->bi_sramsize >> 10, gd->bd->bi_sramstart);
 
 	return (0);
 }
@@ -191,6 +195,12 @@ init_fnc_t *init_sequence[] = {
 	cpu_init,		/* basic cpu dependent setup */
 	board_init,		/* basic board dependent setup */
 	interrupt_init,		/* set up exceptions */
+#ifdef CONFIG_OXNAS
+	/* Need early console to see SATA env. load messages */
+	init_baudrate,		/* initialze baudrate settings */
+	serial_init,		/* serial communications setup */
+	console_init_f,		/* stage 1 init of console */
+#endif // CONFIG_OXNAS
 	env_init,		/* initialize environment */
 	init_baudrate,		/* initialze baudrate settings */
 	serial_init,		/* serial communications setup */
@@ -206,7 +216,6 @@ init_fnc_t *init_sequence[] = {
 
 void start_armboot (void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 
 	ulong size;
 	init_fnc_t **init_fnc_ptr;
@@ -232,9 +241,11 @@ void start_armboot (void)
 		}
 	}
 
+#ifndef CFG_NO_FLASH
 	/* configure available FLASH banks */
 	size = flash_init ();
 	display_flash_config (size);
+#endif // CFG_NO_FLASH
 
 #ifdef CONFIG_VFD
 #	ifndef PAGE_SIZE
@@ -351,6 +362,12 @@ void start_armboot (void)
 }
 
 void hang (void)
+{
+	puts ("### ERROR ### Please RESET the board ###\n");
+	for (;;);
+}
+
+void raise (int n)
 {
 	puts ("### ERROR ### Please RESET the board ###\n");
 	for (;;);

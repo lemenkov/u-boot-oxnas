@@ -1296,6 +1296,9 @@ smdk2410_config	:	unconfig
 SX1_config :		unconfig
 	@./mkconfig $(@:_config=) arm arm925t sx1
 
+oxnas_config :	unconfig
+	@./mkconfig $(@:_config=) arm arm926ejs oxnas
+
 # TRAB default configuration:	8 MB Flash, 32 MB RAM
 trab_config \
 trab_bigram_config \
@@ -1561,11 +1564,12 @@ suzaku_config:	unconfig
 clean:
 	find . -type f \
 		\( -name 'core' -o -name '*.bak' -o -name '*~' \
-		-o -name '*.o'  -o -name '*.a'  \) -print \
+		-o -name '*.o'  -o -name '*.a' -o -name '.depend' \) -print \
 		| xargs rm -f
 	rm -f examples/hello_world examples/timer \
 	      examples/eepro100_eeprom examples/sched \
-	      examples/mem_to_mem_idma2intr examples/82559_eeprom
+	      examples/mem_to_mem_idma2intr examples/82559_eeprom \
+              examples/mem_test
 	rm -f tools/img2srec tools/mkimage tools/envcrc tools/gen_eth_addr
 	rm -f tools/mpc86x_clk tools/ncb
 	rm -f tools/easylogo/easylogo tools/bmp_logo

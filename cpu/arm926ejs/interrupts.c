@@ -41,7 +41,12 @@
 #include <asm/proc-armv/ptrace.h>
 
 extern void reset_cpu(ulong addr);
+
+#ifdef CONFIG_OXNAS
+#define TIMER_LOAD_VAL 0xffffUL
+#else // CONFIG_OXNAS
 #define TIMER_LOAD_VAL 0xffffffff
+#endif // CONFIG_OXNAS
 
 /* macro to read the 32 bit timer */
 #ifdef CONFIG_OMAP
@@ -52,6 +57,9 @@ extern void reset_cpu(ulong addr);
 #endif
 #ifdef CONFIG_VERSATILE
 #define READ_TIMER (*(volatile ulong *)(CFG_TIMERBASE+4))
+#endif
+#ifdef CONFIG_OXNAS
+#define READ_TIMER ((*(volatile ushort *)(CFG_TIMERBASE+4)) & 0xFFFFUL)  /* RPS timer value register has only 16 defined bits */
 #endif
 
 #ifdef CONFIG_USE_IRQ
@@ -212,6 +220,16 @@ int interrupt_init (void)
 	*(volatile ulong *)(CFG_TIMERBASE + 4) = CFG_TIMER_RELOAD;	/* TimerValue */
 	*(volatile ulong *)(CFG_TIMERBASE + 8) = 0x8C;
 #endif	/* CONFIG_VERSATILE */
+#ifdef CONFIG_OXNAS
+    // Setup timer 1 load value
+    *(volatile ulong*)(CFG_TIMERBASE + 0) = TIMER_LOAD_VAL;
+
+    // Setup timer 1 prescaler, periodic operation and start it
+    *(volatile ulong*)(CFG_TIMERBASE + 8) =
+        (TIMER_PRESCALE_ENUM << TIMER_PRESCALE_BIT) |
+        (TIMER_MODE_PERIODIC << TIMER_MODE_BIT) |
+        (TIMER_ENABLE_ENABLE << TIMER_ENABLE_BIT);
+#endif	/* CONFIG_OXNAS */
 
 	/* init the timestamp and lastdec value */
 	reset_timer_masked();

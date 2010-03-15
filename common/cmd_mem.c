@@ -731,13 +731,17 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	if (argc > 1) {
 		start = (ulong *)simple_strtoul(argv[1], NULL, 16);
 	} else {
-		start = (ulong *)CFG_MEMTEST_START;
+		DECLARE_GLOBAL_DATA_PTR;
+
+		start = (ulong *)(gd->bd->bi_dram[0].start);
 	}
 
 	if (argc > 2) {
 		end = (ulong *)simple_strtoul(argv[2], NULL, 16);
 	} else {
-		end = (ulong *)(CFG_MEMTEST_END);
+		DECLARE_GLOBAL_DATA_PTR;
+
+		end = (ulong *)(start + gd->bd->bi_dram[0].size);
 	}
 
 	if (argc > 3) {

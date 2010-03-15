@@ -225,7 +225,7 @@ void ArpTimeoutCheck(void)
 		return;
 
 	t = get_timer(0);
-
+	
 	/* check for arp timeout */
 	if ((t - NetArpWaitTimerStart) > ARP_TIMEOUT * CFG_HZ) {
 		NetArpWaitTry++;
@@ -235,6 +235,7 @@ void ArpTimeoutCheck(void)
 			NetArpWaitTry = 0;
 			NetStartAgain();
 		} else {
+			puts ("\nARP Resend request\n");
 			NetArpWaitTimerStart = t;
 			ArpRequest();
 		}
@@ -738,7 +739,7 @@ static void PingStart(void)
 #if defined(CONFIG_NET_MULTI)
 	printf ("Using %s device\n", eth_get_name());
 #endif	/* CONFIG_NET_MULTI */
-	NetSetTimeout (10 * CFG_HZ, PingTimeout);
+	NetSetTimeout (30 * CFG_HZ, PingTimeout);
 	NetSetHandler (PingHandler);
 
 	PingSend();
@@ -1384,7 +1385,7 @@ NetReceive(volatile uchar * inpkt, int len)
 				 */
 				/* XXX point to ip packet */
 				(*packetHandler)((uchar *)ip, 0, 0, 0);
-				break;
+				return;/**break; BHC Changed to remove second invocation of ping handler below */
 #endif
 			default:
 				return;
@@ -1492,10 +1493,11 @@ unsigned
 NetCksum(uchar * ptr, int len)
 {
 	ulong	xsum;
+	ushort *s = ptr;
 
 	xsum = 0;
 	while (len-- > 0)
-		xsum += *((ushort *)ptr)++;
+		xsum += *s++;
 	xsum = (xsum & 0xffff) + (xsum >> 16);
 	xsum = (xsum & 0xffff) + (xsum >> 16);
 	return (xsum & 0xffff);

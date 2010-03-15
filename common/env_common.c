@@ -42,7 +42,7 @@
 	extern void disable_nvram(void);
 #endif
 
-#undef DEBUG_ENV
+//#undef DEBUG_ENV
 #ifdef DEBUG_ENV
 #define DEBUGF(fmt,args...) printf(fmt ,##args)
 #else
@@ -72,6 +72,12 @@ uchar default_environment[] = {
 #endif
 #ifdef	CONFIG_RAMBOOTCOMMAND
 	"ramboot="	CONFIG_RAMBOOTCOMMAND		"\0"
+#endif
+#ifdef	CONFIG_FLASHBOOTCOMMAND
+	"flashboot="	CONFIG_FLASHBOOTCOMMAND		"\0"
+#endif
+#ifdef	CONFIG_FLASHINGCOMMAND
+	"flashing="	CONFIG_FLASHINGCOMMAND		"\0"
 #endif
 #ifdef	CONFIG_NFSBOOTCOMMAND
 	"nfsboot="	CONFIG_NFSBOOTCOMMAND		"\0"

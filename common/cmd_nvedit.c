@@ -55,8 +55,9 @@
     !defined(CFG_ENV_IS_IN_FLASH)	&& \
     !defined(CFG_ENV_IS_IN_DATAFLASH)	&& \
     !defined(CFG_ENV_IS_IN_NAND)	&& \
+    !defined(CFG_ENV_IS_IN_DISK)	&& \
     !defined(CFG_ENV_IS_NOWHERE)
-# error Define one of CFG_ENV_IS_IN_{NVRAM|EEPROM|FLASH|DATAFLASH|NOWHERE}
+# error Define one of CFG_ENV_IS_IN_{NVRAM|EEPROM|FLASH|DATAFLASH|DISK|NOWHERE}
 #endif
 
 #define XMK_STR(x)	#x
@@ -483,7 +484,7 @@ int do_askenv ( cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
  * or NULL if not found
  */
 
-char *getenv (uchar *name)
+char *getenv (const uchar *name)
 {
 	int i, nxt;
 
@@ -530,7 +531,9 @@ int getenv_r (uchar *name, uchar *buf, unsigned len)
 	return (-1);
 }
 
-#if defined(CFG_ENV_IS_IN_NVRAM) || defined(CFG_ENV_IS_IN_EEPROM) || \
+#if defined(CFG_ENV_IS_IN_NVRAM) || \
+    defined(CFG_ENV_IS_IN_EEPROM) || \
+    defined(CFG_ENV_IS_IN_DISK) || \
     ((CONFIG_COMMANDS & (CFG_CMD_ENV|CFG_CMD_FLASH)) == \
       (CFG_CMD_ENV|CFG_CMD_FLASH))
 int do_saveenv (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
@@ -586,7 +589,9 @@ U_BOOT_CMD(
 	"    - delete environment variable 'name'\n"
 );
 
-#if defined(CFG_ENV_IS_IN_NVRAM) || defined(CFG_ENV_IS_IN_EEPROM) || \
+#if defined(CFG_ENV_IS_IN_NVRAM) || \
+    defined(CFG_ENV_IS_IN_EEPROM) || \
+    defined(CFG_ENV_IS_IN_DISK) || \
     ((CONFIG_COMMANDS & (CFG_CMD_ENV|CFG_CMD_FLASH)) == \
       (CFG_CMD_ENV|CFG_CMD_FLASH))
 U_BOOT_CMD(

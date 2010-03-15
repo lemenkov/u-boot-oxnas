@@ -27,17 +27,18 @@
  * See included "fw_env.config" sample file (TRAB board)
  * for notes on configuration.
  */
-#define CONFIG_FILE     "/etc/fw_env.config"
+//#define CONFIG_FILE     "/etc/fw_env.config"
 
-#define HAVE_REDUND /* For systems with 2 env sectors */
-#define DEVICE1_NAME      "/dev/mtd1"
-#define DEVICE2_NAME      "/dev/mtd2"
-#define DEVICE1_OFFSET    0x0000
-#define ENV1_SIZE         0x4000
-#define DEVICE1_ESIZE     0x4000
-#define DEVICE2_OFFSET    0x0000
-#define ENV2_SIZE         0x4000
-#define DEVICE2_ESIZE     0x4000
+#define DEVICE1_NAME      "/dev/mtd4"
+//#define DEVICE2_NAME      "/dev/mtd2"
+
+#define DEVICE1_OFFSET    0x00000
+#define ENV1_SIZE         0x2000
+#define DEVICE1_ESIZE     0x10000
+
+//#define DEVICE2_OFFSET    0x0000
+//#define ENV2_SIZE         0x4000
+//#define DEVICE2_ESIZE     0x4000
 
 #define CONFIG_BAUDRATE		115200
 #define CONFIG_BOOTDELAY	5	/* autoboot after 5 seconds	*/

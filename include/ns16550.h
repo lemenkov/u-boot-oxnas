@@ -19,6 +19,10 @@ struct NS16550 {
 	unsigned char lsr;		/* 5 */
 	unsigned char msr;		/* 6 */
 	unsigned char scr;		/* 7 */
+#if defined(CONFIG_OXNAS)
+	unsigned char ext;		/* 8 */
+	unsigned char dlf;		/* 9 */
+#endif
 #if defined(CONFIG_OMAP730)
 	unsigned char mdr1;		/* 8 */
 	unsigned char reg9;		/* 9 */

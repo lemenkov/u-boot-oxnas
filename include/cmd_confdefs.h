@@ -92,6 +92,7 @@
 #define CFG_CMD_XIMG	0x0400000000000000ULL	/* Load part of Multi Image	*/
 #define CFG_CMD_UNIVERSE 0x0800000000000000ULL	/* Tundra Universe Support      */
 #define CFG_CMD_EXT2    0x1000000000000000ULL	/* EXT2 Support                 */
+#define CFG_CMD_LEDFAIL 0x2000000000000000ULL	/* OXNAS Failure LED support */
 
 #define CFG_CMD_ALL	0xFFFFFFFFFFFFFFFFULL	/* ALL commands			*/
 

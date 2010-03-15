@@ -21,7 +21,6 @@
 # MA 02111-1307 USA
 #
 
-PLATFORM_RELFLAGS += -fno-strict-aliasing  -fno-common -ffixed-r8 \
-	-mshort-load-bytes -msoft-float
+PLATFORM_RELFLAGS += -fno-strict-aliasing  -fno-common -ffixed-r8
 
-PLATFORM_CPPFLAGS += -mapcs-32 -march=armv4
+PLATFORM_CPPFLAGS += -march=armv5te

@@ -223,7 +223,7 @@ int do_ext2load (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	PRINTF("Using device %s%d, partition %d\n", argv[1], dev, part);
 
 	if (part != 0) {
-		if (get_partition_info (&dev_desc[dev], part, &info)) {
+		if (get_partition_info (dev_desc, part, &info)) {
 			printf ("** Bad partition %d **\n", part);
 			return(1);
 		}

@@ -94,6 +94,11 @@ _fiq:
 _TEXT_BASE:
 	.word	TEXT_BASE
 
+#ifdef CONFIG_OXNAS
+_EXCEPTION_BASE:
+	.word	EXCEPTION_BASE
+#endif
+
 .globl _armboot_start
 _armboot_start:
 	.word _start
@@ -135,6 +140,18 @@ reset:
 	orr	r0,r0,#0xd3
 	msr	cpsr,r0
 
+#ifdef CONFIG_OXNAS
+	/*
+	 * Copy exception table to relocated address in internal SRAM
+	 */
+	adr	r0, _start				/* Address of exception table in flash */
+	ldr	r1, _EXCEPTION_BASE		/* Relocated address of exception table */
+	ldmia	r0!, {r3-r10}		/* Copy exception table and jump values from */
+	stmia	r1!, {r3-r10}		/* FLASH to relocated address */
+	ldmia	r0!, {r3-r10}
+	stmia	r1!, {r3-r10}
+#endif
+
 	/*
 	 * we do sys-critical inits only at reboot,
 	 * not when booting from ram!
@@ -143,21 +160,21 @@ reset:
 	bl	cpu_init_crit
 #endif
 
-relocate:				/* relocate U-Boot to RAM	    */
-	adr	r0, _start		/* r0 <- current position of code   */
-	ldr	r1, _TEXT_BASE		/* test if we run from flash or RAM */
-	cmp     r0, r1                  /* don't reloc during debug         */
-	beq     stack_setup
+relocate:					/* relocate U-Boot to RAM */
+	adr	r0, _start			/* current position of code */
+	ldr	r1, _TEXT_BASE		/* relocated position of code */
+	cmp	r0, r1
+	beq	stack_setup
 
 	ldr	r2, _armboot_start
 	ldr	r3, _bss_start
-	sub	r2, r3, r2		/* r2 <- size of armboot            */
-	add	r2, r0, r2		/* r2 <- source end address         */
+	sub	r2, r3, r2			/* r2 <- size of armboot */
+	add	r2, r0, r2			/* r2 <- source end address */
 
 copy_loop:
-	ldmia	r0!, {r3-r10}		/* copy from source address [r0]    */
-	stmia	r1!, {r3-r10}		/* copy to   target address [r1]    */
-	cmp	r0, r2			/* until source end addreee [r2]    */
+	ldmia	r0!, {r3-r10}	/* copy from source address [r0] */
+	stmia	r1!, {r3-r10}	/* copy to   target address [r1] */
+	cmp	r0, r2				/* until source end addreee [r2] */
 	ble	copy_loop
 
 	/* Set up the stack						    */
@@ -212,7 +229,7 @@ cpu_init_crit:
 	mrc	p15, 0, r0, c1, c0, 0
 	bic	r0, r0, #0x00002300	/* clear bits 13, 9:8 (--V- --RS) */
 	bic	r0, r0, #0x00000087	/* clear bits 7, 2:0 (B--- -CAM) */
-	orr	r0, r0, #0x00000002	/* set bit 2 (A) Align */
+	orr	r0, r0, #0x00000002	/* set bit 1 (A) Align */
 	orr	r0, r0, #0x00001000	/* set bit 12 (I) I-Cache */
 	mcr	p15, 0, r0, c1, c0, 0
 
@@ -391,6 +408,7 @@ fiq:
 
 #endif
 
+#ifndef CONFIG_OXNAS
 	.align	5
 .globl reset_cpu
 reset_cpu:
@@ -405,3 +423,4 @@ _loop_forever:
 
 rstctl1:
 	.word	0xfffece10
+#endif // !CONFIG_OXNAS

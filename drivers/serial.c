@@ -59,7 +59,13 @@ static int calc_divisor (void)
 		return (26);		/* return 26 for base divisor */
 	}
 #endif
-	return (CFG_NS16550_CLK / 16 / gd->baudrate);
+
+#ifdef USE_UART_FRACTIONAL_DIVIDER
+	return (((CFG_NS16550_CLK << 4) / gd->baudrate) + 8) >> 4;	
+#endif // USE_UART_FRACTIONAL_DIVIDER
+
+    // Round to nearest integer
+    return (((CFG_NS16550_CLK / gd->baudrate) + 8 ) / 16);
 }
 
 int serial_init (void)

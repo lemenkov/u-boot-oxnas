@@ -193,6 +193,13 @@ ulong atapi_read (int device, lbaint_t blknr, ulong blkcnt, ulong *buffer);
 static void set_pcmcia_timing (int pmode);
 #endif
 
+#ifdef CONFIG_OXNAS
+extern unsigned char oxnas_sata_inb(int dev, int port);
+extern void oxnas_sata_outb(int dev, int port, unsigned char val);
+extern void oxnas_sata_output_data(int dev, ulong *sect_buf, int words);
+extern void oxnas_sata_input_data(int dev, ulong *sect_buf, int words);
+#endif // CONFIG_OXNAS
+
 /* ------------------------------------------------------------------------- */
 
 int do_ide (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
@@ -491,175 +498,103 @@ int do_diskboot (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	return rcode;
 }
 
-/* ------------------------------------------------------------------------- */
 
-void ide_init (void)
+static int ide_probe(int device)
 {
+    int found = 0;
 
-#ifdef CONFIG_IDE_8xx_DIRECT
-	DECLARE_GLOBAL_DATA_PTR;
-	volatile immap_t *immr = (immap_t *)CFG_IMMR;
-	volatile pcmconf8xx_t *pcmp = &(immr->im_pcmcia);
-#endif
+    /* Select device */
+    udelay(100000);	    /* 100 ms */
+    ide_outb(device, ATA_DEV_HD, ATA_LBA | ATA_DEVICE(device));
+    udelay(100000);     /* 100 ms */
+
 	unsigned char c;
-	int i, bus;
-#ifdef CONFIG_AMIGAONEG3SE
-	unsigned int max_bus_scan;
-	unsigned int ata_reset_time;
-	char *s;
+    int i = 0;
+    do {
+        udelay(10000);  /* 10 ms */
+
+        c = ide_inb(device, ATA_STATUS);
+        if (++i > (ATA_RESET_TIME * 100)) {
+            PRINTF("ide_probe() timeout\n");
+            ide_led((LED_IDE1 | LED_IDE2), 0);  /* LED's off */
+            return found;
+        }
+        if ((i >= 100) && ((i%100) == 0)) {
+            putc ('.');
+        }
+    } while (c & ATA_STAT_BUSY);
+
+    if (c & (ATA_STAT_BUSY | ATA_STAT_FAULT)) {
+        PRINTF("ide_probe() status = 0x%02X ", c);
+#ifndef CONFIG_ATAPI    /* ATAPI Devices do not set DRDY */
+    } else  if ((c & ATA_STAT_READY) == 0) {
+        PRINTF("ide_probe() status = 0x%02X ", c);
 #endif
-#ifdef CONFIG_IDE_8xx_PCCARD
-	extern int pcmcia_on (void);
-	extern int ide_devices_found; /* Initialized in check_ide_device() */
-#endif	/* CONFIG_IDE_8xx_PCCARD */
+    } else {
+        found = 1;
+    }
+
+    return found;
+}
+
+void ide_init(void)
+{
+	static int ide_init_called = 0;
+	int i, bus;
+
+	if (ide_init_called) {
+		return;
+	}
+	ide_init_called = 1;
 
 #ifdef CONFIG_IDE_PREINIT
-	extern int ide_preinit (void);
+	extern int ide_preinit(void);
 	WATCHDOG_RESET();
 
-	if (ide_preinit ()) {
+    printf("Initialising disks\n");
+	if (ide_preinit()) {
 		puts ("ide_preinit failed\n");
 		return;
 	}
 #endif	/* CONFIG_IDE_PREINIT */
 
-#ifdef CONFIG_IDE_8xx_PCCARD
-	extern int pcmcia_on (void);
-	extern int ide_devices_found; /* Initialized in check_ide_device() */
-
 	WATCHDOG_RESET();
-
-	ide_devices_found = 0;
-	/* initialize the PCMCIA IDE adapter card */
-	pcmcia_on();
-	if (!ide_devices_found)
-		return;
-	udelay (1000000);	/* 1 s */
-#endif	/* CONFIG_IDE_8xx_PCCARD */
-
-	WATCHDOG_RESET();
-
-#ifdef CONFIG_IDE_8xx_DIRECT
-	/* Initialize PIO timing tables */
-	for (i=0; i <= IDE_MAX_PIO_MODE; ++i) {
-	    pio_config_clk[i].t_setup  = PCMCIA_MK_CLKS(pio_config_ns[i].t_setup,
-							    gd->bus_clk);
-	    pio_config_clk[i].t_length = PCMCIA_MK_CLKS(pio_config_ns[i].t_length,
-							    gd->bus_clk);
-	    pio_config_clk[i].t_hold   = PCMCIA_MK_CLKS(pio_config_ns[i].t_hold,
-							    gd->bus_clk);
-	    PRINTF ("PIO Mode %d: setup=%2d ns/%d clk"
-		    "  len=%3d ns/%d clk"
-		    "  hold=%2d ns/%d clk\n",
-		    i,
-		    pio_config_ns[i].t_setup,  pio_config_clk[i].t_setup,
-		    pio_config_ns[i].t_length, pio_config_clk[i].t_length,
-		    pio_config_ns[i].t_hold,   pio_config_clk[i].t_hold);
-	}
-#endif /* CONFIG_IDE_8xx_DIRECT */
 
 	/* Reset the IDE just to be sure.
 	 * Light LED's to show
 	 */
-	ide_led ((LED_IDE1 | LED_IDE2), 1);		/* LED's on	*/
-	ide_reset (); /* ATAPI Drives seems to need a proper IDE Reset */
-
-#ifdef CONFIG_IDE_8xx_DIRECT
-	/* PCMCIA / IDE initialization for common mem space */
-	pcmp->pcmc_pgcrb = 0;
-
-	/* start in PIO mode 0 - most relaxed timings */
-	pio_mode = 0;
-	set_pcmcia_timing (pio_mode);
-#endif /* CONFIG_IDE_8xx_DIRECT */
+	ide_led((LED_IDE1 | LED_IDE2), 1);		/* LED's on	*/
+	ide_reset(); /* ATAPI Drives seems to need a proper IDE Reset */
 
 	/*
 	 * Wait for IDE to get ready.
 	 * According to spec, this can take up to 31 seconds!
 	 */
-#ifndef CONFIG_AMIGAONEG3SE
-	for (bus=0; bus<CFG_IDE_MAXBUS; ++bus) {
-		int dev = bus * (CFG_IDE_MAXDEVICE / CFG_IDE_MAXBUS);
-#else
-	s = getenv("ide_maxbus");
-	if (s)
-	    max_bus_scan = simple_strtol(s, NULL, 10);
-	else
-	    max_bus_scan = CFG_IDE_MAXBUS;
+    printf("Detecting SATA busses:\n");
+    for (bus=0; bus < CFG_IDE_MAXBUS; ++bus) {
+        printf("Bus %d: ", bus);
 
-	for (bus=0; bus<max_bus_scan; ++bus) {
-		int dev = bus * (CFG_IDE_MAXDEVICE / max_bus_scan);
-#endif
+        /* Try to discover if bus is present by probing first device on bus */
+        int device = bus * (CFG_IDE_MAXDEVICE / CFG_IDE_MAXBUS);
+        ide_bus_ok[bus] = ide_probe(device);
+        if (ide_bus_ok[bus]) {
+            puts("Found first device OK\n");
+        } else {
+            WATCHDOG_RESET();
+        
+            /* Try second device on bus */
+            ide_bus_ok[bus] = ide_probe(++device);
+            if (ide_bus_ok[bus]) {
+                puts("Found second device OK\n");
+            } else {
+                puts("No devices found\n");
+            }
+        }
 
-#ifdef CONFIG_IDE_8xx_PCCARD
-		/* Skip non-ide devices from probing */
-		if ((ide_devices_found & (1 << bus)) == 0) {
-			ide_led ((LED_IDE1 | LED_IDE2), 0); /* LED's off */
-			continue;
-		}
-#endif
-		printf ("Bus %d: ", bus);
+        WATCHDOG_RESET();
+    }
 
-		ide_bus_ok[bus] = 0;
-
-		/* Select device
-		 */
-		udelay (100000);		/* 100 ms */
-		ide_outb (dev, ATA_DEV_HD, ATA_LBA | ATA_DEVICE(dev));
-		udelay (100000);		/* 100 ms */
-#ifdef CONFIG_AMIGAONEG3SE
-		ata_reset_time = ATA_RESET_TIME;
-		s = getenv("ide_reset_timeout");
-		if (s) ata_reset_time = 2*simple_strtol(s, NULL, 10);
-#endif
-		i = 0;
-		do {
-			udelay (10000);		/* 10 ms */
-
-			c = ide_inb (dev, ATA_STATUS);
-			i++;
-#ifdef CONFIG_AMIGAONEG3SE
-			if (i > (ata_reset_time * 100)) {
-#else
-			if (i > (ATA_RESET_TIME * 100)) {
-#endif
-				puts ("** Timeout **\n");
-				ide_led ((LED_IDE1 | LED_IDE2), 0); /* LED's off */
-#ifdef CONFIG_AMIGAONEG3SE
-				/* If this is the second bus, the first one was OK */
-				if (bus != 0) {
-				    ide_bus_ok[bus] = 0;
-				    goto skip_bus;
-				}
-#endif
-				return;
-			}
-			if ((i >= 100) && ((i%100)==0)) {
-				putc ('.');
-			}
-		} while (c & ATA_STAT_BUSY);
-
-		if (c & (ATA_STAT_BUSY | ATA_STAT_FAULT)) {
-			puts ("not available  ");
-			PRINTF ("Status = 0x%02X ", c);
-#ifndef CONFIG_ATAPI /* ATAPI Devices do not set DRDY */
-		} else  if ((c & ATA_STAT_READY) == 0) {
-			puts ("not available  ");
-			PRINTF ("Status = 0x%02X ", c);
-#endif
-		} else {
-			puts ("OK ");
-			ide_bus_ok[bus] = 1;
-		}
-		WATCHDOG_RESET();
-	}
-
-#ifdef CONFIG_AMIGAONEG3SE
-      skip_bus:
-#endif
-	putc ('\n');
-
-	ide_led ((LED_IDE1 | LED_IDE2), 0);	/* LED's off	*/
+	ide_led((LED_IDE1 | LED_IDE2), 0);	/* LED's off	*/
 
 	curr_device = -1;
 	for (i=0; i<CFG_IDE_MAXDEVICE; ++i) {
@@ -675,18 +610,22 @@ void ide_init (void)
 		ide_dev_desc[i].block_read=ide_read;
 		if (!ide_bus_ok[IDE_BUS(i)])
 			continue;
-		ide_led (led, 1);		/* LED on	*/
+		ide_led(led, 1);		/* LED on	*/
 		ide_ident(&ide_dev_desc[i]);
-		ide_led (led, 0);		/* LED off	*/
+		ide_led(led, 0);		/* LED off	*/
 		dev_print(&ide_dev_desc[i]);
-/*		ide_print (i); */
 		if ((ide_dev_desc[i].lba > 0) && (ide_dev_desc[i].blksz > 0)) {
-			init_part (&ide_dev_desc[i]);			/* initialize partition type */
+			init_part(&ide_dev_desc[i]);    /* initialize partition type */
 			if (curr_device < 0)
 				curr_device = i;
 		}
 	}
 	WATCHDOG_RESET();
+}
+
+int is_device_present(int device_number)
+{
+    return ide_dev_desc[device_number].part_type != PART_TYPE_UNKNOWN;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -798,6 +737,11 @@ ide_outb(int dev, int port, unsigned char val)
 	EIEIO;
 	*((uchar *)(ATA_CURR_BASE(dev)+port)) = val;
 }
+#elif defined(CONFIG_OXNAS)
+static void __inline__ ide_outb(int dev, int port, unsigned char val)
+{
+    oxnas_sata_outb(dev, port, val);
+}
 #else	/* ! __PPC__ */
 static void __inline__
 ide_outb(int dev, int port, unsigned char val)
@@ -818,6 +762,11 @@ ide_inb(int dev, int port)
 	PRINTF ("ide_inb (dev= %d, port= 0x%x) : @ 0x%08lx -> 0x%02x\n",
 		dev, port, (ATA_CURR_BASE(dev)+port), val);
 	return (val);
+}
+#elif defined(CONFIG_OXNAS)
+static unsigned char __inline__ ide_inb(int dev, int port)
+{
+    return oxnas_sata_inb(dev, port);
 }
 #else	/* ! __PPC__ */
 static unsigned char __inline__
@@ -921,6 +870,11 @@ output_data(int dev, ulong *sect_buf, int words)
 	}
 #endif	/* CONFIG_HMI10 */
 }
+#elif defined(CONFIG_OXNAS)
+static void output_data(int dev, ulong *sect_buf, int words)
+{
+    oxnas_sata_output_data(dev, sect_buf, words);
+}
 #else	/* ! __PPC__ */
 static void
 output_data(int dev, ulong *sect_buf, int words)
@@ -968,6 +922,11 @@ input_data(int dev, ulong *sect_buf, int words)
 	}
 #endif	/* CONFIG_HMI10 */
 }
+#elif defined(CONFIG_OXNAS)
+static void input_data(int dev, ulong *sect_buf, int words)
+{
+    oxnas_sata_input_data(dev, sect_buf, words);
+}
 #else	/* ! __PPC__ */
 static void
 input_data(int dev, ulong *sect_buf, int words)
@@ -1001,10 +960,36 @@ input_data_short(int dev, ulong *sect_buf, int words)
 
 /* -------------------------------------------------------------------------
  */
+#ifdef CONFIG_OXNAS
+static void byte_swap_and_trim(char* buf)
+{
+    char *src = buf;
+
+    // Swap bytes in 16-bit words
+    while ((*src != '\0') && (*(src+1) != '\0')) {
+        char tmp = *(src+1);
+        *(src+1) = *src;
+        *src = tmp;
+        src += 2;
+    }
+
+    // Trim leading spaces
+    src = buf;
+    while (*src == ' ') {
+        ++src;
+    }
+    if (src != buf) {
+        memcpy(buf, src, strlen(src));
+        buf[strlen(buf) - (src-buf)] = '\0';
+    }
+}
+#endif // CONFIG_OXNAS
+
 static void ide_ident (block_dev_desc_t *dev_desc)
 {
 	ulong iobuf[ATA_SECTORWORDS];
 	unsigned char c;
+    unsigned int i;
 	hd_driveid_t *iop = (hd_driveid_t *)iobuf;
 
 #ifdef CONFIG_AMIGAONEG3SE
@@ -1023,6 +1008,10 @@ static void ide_ident (block_dev_desc_t *dev_desc)
 	device=dev_desc->dev;
 	printf ("  Device %d: ", device);
 
+    for ( i=0; i < ATA_SECTORWORDS; ++i) {
+        iobuf[i] = 0;
+    }
+    
 #ifdef CONFIG_AMIGAONEG3SE
 	s = getenv("ide_maxbus");
 	if (s) {
@@ -1110,20 +1099,22 @@ static void ide_ident (block_dev_desc_t *dev_desc)
 
 	input_swap_data (device, iobuf, ATA_SECTORWORDS);
 
-	ident_cpy (dev_desc->revision, iop->fw_rev, sizeof(dev_desc->revision));
-	ident_cpy (dev_desc->vendor, iop->model, sizeof(dev_desc->vendor));
-	ident_cpy (dev_desc->product, iop->serial_no, sizeof(dev_desc->product));
+	ident_cpy(dev_desc->revision, iop->fw_rev, sizeof(dev_desc->revision));
+	ident_cpy(dev_desc->vendor, iop->model, sizeof(dev_desc->vendor));
+	ident_cpy(dev_desc->product, iop->serial_no, sizeof(dev_desc->product));
+
 #ifdef __LITTLE_ENDIAN
 	/*
-	 * firmware revision and model number have Big Endian Byte
+	 * firmware revision, model number and product have Big Endian Byte
 	 * order in Word. Convert both to little endian.
 	 *
 	 * See CF+ and CompactFlash Specification Revision 2.0:
 	 * 6.2.1.6: Identfy Drive, Table 39 for more details
 	 */
 
-	strswab (dev_desc->revision);
-	strswab (dev_desc->vendor);
+	byte_swap_and_trim(dev_desc->revision);
+	byte_swap_and_trim(dev_desc->vendor);
+	byte_swap_and_trim(dev_desc->product);
 #endif /* __LITTLE_ENDIAN */
 
 	if ((iop->config & 0x0080)==0x0080)
