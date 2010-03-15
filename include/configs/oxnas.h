@@ -222,6 +222,9 @@
 #define CONFIG_CMD_LOADB	/* loadb                        */
 #define CONFIG_CMD_LOADS	/* loads                        */
 #define CONFIG_CMD_MISC		/* Misc functions like sleep etc */
+#define CONFIG_CMD_NET		/* bootp, tftpboot, rarpboot	*/
+#define CONFIG_CMD_DHCP		/* bootp, tftpboot, rarpboot	*/
+#define CONFIG_CMD_PING		/* bootp, tftpboot, rarpboot	*/
 #define CONFIG_CMD_RUN		/* run command in env variable  */
 #define CONFIG_CMD_SAVEENV	/* saveenv                      */
 #define CONFIG_CMD_SOURCE	/* "source" command support     */
@@ -236,6 +239,18 @@
 #define CONFIG_BOOTDELAY            2
 #define CONFIG_BOOTARGS             "mem=32M console=ttyS0,115200 root=/dev/sda1 netdev=0,0,0x0030e000,0x0001,eth0 elevator=cfq"
 #define CONFIG_BOOTCOMMAND          "ext2load ide 0:1 0x48500000 /boot/uImage ; bootm 0x48500000"
+
+/**
+ * Networking
+ */
+#define CONFIG_GMAC 1
+
+#define CONFIG_ETHADDR      00:30:e0:00:00:01
+#define CONFIG_NETMASK		255.255.255.0
+#define CONFIG_IPADDR		192.168.0.5
+#define CONFIG_SERVERIP		192.168.0.2
+#define CFG_AUTOLOAD        "n"
+#define CONFIG_NET_RETRY_COUNT 30
 
 /**
  * Environment organization
